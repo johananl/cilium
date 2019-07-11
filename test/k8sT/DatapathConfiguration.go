@@ -183,6 +183,21 @@ var _ = Describe("K8sDatapathConfig", func() {
 		})
 	})
 
+	Context("Transparent encryption with encrypt-node DirectRouting", func() {
+		It("Check connectivity with automatic direct nodes routes", func() {
+			SkipIfFlannel()
+
+			if !helpers.RunsOnNetNext() {
+				Skip("Skipping test because it is not running with the net-next kernel")
+				return
+			}
+
+			deployCilium("cilium-ds-patch-auto-node-routes-node-ipsec.yaml")
+			Expect(testPodConnectivityAcrossNodes(kubectl)).Should(BeTrue(), "Connectivity test between nodes failed")
+			cleanService()
+		})
+	})
+
 	Context("IPv4Only", func() {
 		It("Check connectivity with IPv6 disabled", func() {
 			deployCilium("cilium-ds-patch-ipv4-only.yaml")
