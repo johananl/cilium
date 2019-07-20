@@ -747,6 +747,7 @@ func NewDaemon(dp datapath.Datapath) (*Daemon, *endpointRestoreState, error) {
 		mtuConfig:         mtuConfig,
 		datapath:          dp,
 		nodeDiscovery:     nodediscovery.NewNodeDiscovery(nodeMngr, mtuConfig),
+		endpointManager:   endpointmanager.NewEndpointManager(&endpointsynchronizer.EndpointSynchronizer{}),
 	}
 
 	endpointmanager.GlobalEndpointManager = endpointmanager.NewEndpointManager(&endpointsynchronizer.EndpointSynchronizer{})
@@ -996,7 +997,7 @@ func (d *Daemon) bootstrapWorkloads() error {
 
 		// Workloads must be initialized after IPAM has started as it requires
 		// to allocate IPs.
-		if err := workloads.Setup(d.ipam, option.Config.Workloads, opts); err != nil {
+		if err := workloads.Setup(d.ipam, option.Config.Workloads, opts, d.endpointManager); err != nil {
 			return fmt.Errorf("unable to setup workload: %s", err)
 		}
 
