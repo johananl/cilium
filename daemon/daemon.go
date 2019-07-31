@@ -735,6 +735,7 @@ func NewDaemon(dp datapath.Datapath) (*Daemon, *endpointRestoreState, error) {
 	identity.InitWellKnownIdentities()
 
 	epMgr := endpointmanager.NewEndpointManager(&endpointsynchronizer.EndpointSynchronizer{})
+	epMgr.InitMetrics()
 
 	// Cleanup flannel on exit
 	cleanupFuncs.Add(func() {
@@ -760,8 +761,6 @@ func NewDaemon(dp datapath.Datapath) (*Daemon, *endpointRestoreState, error) {
 		nodeDiscovery:     nodediscovery.NewNodeDiscovery(nodeMngr, mtuConfig),
 		endpointManager:   epMgr,
 	}
-
-	endpointmanager.GlobalEndpointManager = endpointmanager.NewEndpointManager(&endpointsynchronizer.EndpointSynchronizer{})
 
 	if option.Config.RunMonitorAgent {
 		monitorAgent, err := monitoragent.NewAgent(context.TODO(), defaults.MonitorBufferPages)
