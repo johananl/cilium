@@ -1397,8 +1397,12 @@ func runDaemon() {
 				<-restoreComplete
 			}
 			d.dnsNameManager.CompleteBootstrap()
-			maps.CollectStaleMapGarbage()
-			maps.RemoveDisabledMaps()
+
+			ms := maps.NewMapSweeper(&EndpointMapManager{
+				endpointManager: d.endpointManager,
+			})
+			ms.CollectStaleMapGarbage()
+			ms.RemoveDisabledMaps()
 		}()
 	}
 
