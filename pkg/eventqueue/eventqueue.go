@@ -15,6 +15,7 @@
 package eventqueue
 
 import (
+	"context"
 	"reflect"
 	"sync"
 
@@ -22,8 +23,8 @@ import (
 	"github.com/cilium/cilium/pkg/logging/logfields"
 	"github.com/cilium/cilium/pkg/option"
 	"github.com/cilium/cilium/pkg/spanstat"
-
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 )
 
 var (
@@ -68,6 +69,8 @@ type EventQueue struct {
 	// name is used to differentiate this EventQueue from other EventQueues that
 	// are also running in logs
 	name string
+
+	eventSema *semaphore.Weighted
 }
 
 // NewEventQueue returns an EventQueue with a capacity for only one event at
@@ -94,9 +97,10 @@ func NewEventQueueBuffered(name string, numBufferedEvents int) *EventQueue {
 	return &EventQueue{
 		name: name,
 		// Up to numBufferedEvents can be Enqueued until Enqueueing blocks.
-		events: make(chan *Event, numBufferedEvents),
-		close:  make(chan struct{}),
-		drain:  make(chan struct{}),
+		events:    make(chan *Event, numBufferedEvents),
+		close:     make(chan struct{}),
+		drain:     make(chan struct{}),
+		eventSema: semaphore.NewWeighted(1),
 	}
 
 }
@@ -235,6 +239,9 @@ func (q *EventQueue) Run() {
 				close(ev.eventResults)
 				ev.printStats(q)
 			default:
+				// The context will never be canceled, so we don't care about
+				// the error returned.
+				_ = q.eventSema.Acquire(context.Background(), 1)
 				ev.stats.waitConsumeOffQueue.End(true)
 				ev.stats.durationStat.Start()
 				ev.Metadata.Handle(ev.eventResults)
@@ -244,6 +251,7 @@ func (q *EventQueue) Run() {
 				// already been processed.
 				ev.printStats(q)
 				close(ev.eventResults)
+				q.eventSema.Release(1)
 			}
 		}
 	})
@@ -292,6 +300,13 @@ func (q *EventQueue) WaitToBeDrained() {
 		return
 	}
 	<-q.close
+
+	// In-flight events may still be running. Try to acquire the semaphore
+	// which is released once event processing is done.
+	q.eventSema.Acquire(context.Background(), 1)
+
+	// Release immediately, we just wanted to acquire it for waiting purposes.
+	q.eventSema.Release(1)
 }
 
 // EventHandler is an interface for allowing an EventQueue to handle events
