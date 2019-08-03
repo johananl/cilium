@@ -33,7 +33,10 @@ import (
 	"github.com/cilium/cilium/pkg/bpf"
 	"github.com/cilium/cilium/pkg/completion"
 	"github.com/cilium/cilium/pkg/controller"
+	"github.com/cilium/cilium/pkg/datapath"
+	"github.com/cilium/cilium/pkg/datapath/loader/config"
 	metrics2 "github.com/cilium/cilium/pkg/datapath/loader/metrics"
+	"github.com/cilium/cilium/pkg/datapath/loader/wrapper"
 	"github.com/cilium/cilium/pkg/endpoint/regeneration"
 	"github.com/cilium/cilium/pkg/eventqueue"
 	"github.com/cilium/cilium/pkg/fqdn"
@@ -442,19 +445,19 @@ func (d *dummyDatapathLoaderImpl) CallsMapPath(id uint16) string {
 	return fmt.Sprintf("/tmp/%d", id)
 }
 
-func (d *dummyDatapathLoaderImpl) CompileAndLoad(ctx context.Context, ep *EpInfoCache, stats *metrics2.SpanStat) error {
+func (d *dummyDatapathLoaderImpl) CompileAndLoad(ctx context.Context, ep config.EndpointConfig, stats *metrics2.SpanStat) error {
 	return nil
 }
 
-func (d *dummyDatapathLoaderImpl) CompileOrLoad(ctx context.Context, ep *EpInfoCache, stats *metrics2.SpanStat) error {
+func (d *dummyDatapathLoaderImpl) CompileOrLoad(ctx context.Context, ep config.EndpointConfig, stats *metrics2.SpanStat) error {
 	return nil
 }
 
-func (d *dummyDatapathLoaderImpl) ReloadDatapath(ctx context.Context, ep *EpInfoCache, stats *metrics2.SpanStat) error {
+func (d *dummyDatapathLoaderImpl) ReloadDatapath(ctx context.Context, ep config.EndpointConfig, stats *metrics2.SpanStat) error {
 	return nil
 }
 
-func (d *dummyDatapathLoaderImpl) EndpointHash(cfg *Endpoint) (string, error) {
+func (d *dummyDatapathLoaderImpl) EndpointHash(cfg datapath.EndpointConfiguration) (string, error) {
 	return "12345", nil
 }
 
@@ -462,7 +465,7 @@ func (d *dummyDatapathLoaderImpl) DeleteDatapath(ctx context.Context, ifName, di
 	return nil
 }
 
-func (d *dummyDatapathLoaderImpl) Unload(ep *EpInfoCache) {
+func (d *dummyDatapathLoaderImpl) Unload(ep config.EndpointConfig) {
 }
 
 // NewEndpointFromChangeModel creates a new endpoint from a request
@@ -1115,6 +1118,7 @@ func ParseEndpoint(owner regeneration.Owner, strEp string) (*Endpoint, error) {
 	ep.desiredPolicy = policy.NewEndpointPolicy(owner.GetPolicyRepository())
 	ep.realizedPolicy = ep.desiredPolicy
 	ep.controllers = controller.NewManager()
+	ep.DatapathLoaderImpl = &wrapper.LoaderWrapper{}
 
 	// We need to check for nil in Status, CurrentStatuses and Log, since in
 	// some use cases, status will be not nil and Cilium will eventually
